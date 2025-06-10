@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Velozes e Furiosos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos gerais da página */
+        :root {
+            --cor-vermelha: #c0392b;
+            --cor-azul: #2980b9;
+            --cor-amarela: #f1c40f;
+            --fundo-escuro: #1a1a1d;
+            --fundo-container: #2c2c34;
+            --texto-claro: #f0f0f0;
+            --sombra: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Teko', sans-serif;
+            background-color: var(--fundo-escuro);
+            color: var(--texto-claro);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: var(--cor-amarela);
+            text-transform: uppercase;
+            font-size: 3rem;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px var(--sombra);
+            margin-bottom: 20px;
+        }
+
+        /* Container principal do tabuleiro */
+        #game-container {
+            background-color: var(--fundo-container);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px var(--sombra);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* Tabuleiro do jogo */
+        #game-board {
+            display: flex;
+            position: relative;
+            height: 100px;
+            border: 4px solid var(--cor-amarela);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        /* Casas do tabuleiro */
+        .tile {
+            flex: 1; /* Ocupa espaço igual */
+            min-width: 60px; /* Largura mínima para casas */
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+            box-sizing: border-box;
+            border-right: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tile:last-child {
+            border-right: none;
+        }
+
+        /* Cores alternadas */
+        .tile:nth-child(even) { background-color: var(--cor-vermelha); }
+        .tile:nth-child(odd) { background-color: var(--cor-azul); }
+
+        /* Personagem (Toretto) */
+        #player {
+            position: absolute;
+            bottom: 0;
+            left: 0; /* Posição inicial controlada via JS */
+            width: 60px;
+            height: 95px;
+            transform: translateX(10%); /* Centraliza um pouco na casa */
+            transition: left 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Animação com "pulo" */
+            z-index: 10;
+        }
+
+        /* Área do Quiz */
+        #quiz-container {
+            background-color: var(--fundo-container);
+            padding: 25px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            box-shadow: 0 5px 20px var(--sombra);
+        }
+
+        #question {
+            font-size: 2.2rem;
+            min-height: 80px; /* Evita que a tela "pule" */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--texto-claro);
+            line-height: 1.2;
+        }
+
+        /* Container para os botões de resposta */
+        #answers-container {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        /* Responsividade para telas maiores */
+        @media (min-width: 768px) {
+            #answers-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Botões de resposta */
+        .answer-btn {
+            padding: 15px;
+            font-family: 'Teko', sans-serif;
+            font-size: 1.5rem;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            background-color: var(--cor-azul);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            background-color: #3498db;
+            border-color: var(--cor-amarela);
+            transform: translateY(-3px);
+        }
+
+        /* Botão Iniciar/Reiniciar */
+        #start-button {
+            padding: 15px 40px;
+            font-family: 'Teko', sans-serif;
+            font-size: 1.8rem;
+            background: linear-gradient(45deg, var(--cor-amarela), #f39c12);
+            color: var(--fundo-escuro);
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: transform 0.2s;
+            margin-top: 20px;
+        }
+        
+        #start-button:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Feedback (Certo/Errado) */
+        #feedback {
+            margin-top: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Desafio Velozes & Furiosos</h1>
+
+    <!-- O Tabuleiro do Jogo -->
+    <div id="game-container">
+        <div id="game-board">
+            <!-- As casas do tabuleiro e o personagem serão inseridos aqui pelo JavaScript -->
+        </div>
+    </div>
+
+    <!-- A Área do Quiz -->
+    <div id="quiz-container">
+        <h2 id="question">Clique em Iniciar para acelerar!</h2>
+        <div id="answers-container">
+            <!-- As opções de resposta aparecerão aqui -->
+        </div>
+        <p id="feedback"></p>
+        <button id="start-button">Iniciar Jogo</button>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO DO JOGO ---
+        const perguntas = [
+            { // Nível 1
+                pergunta: "Qual é a bebida favorita de Dominic Toretto?",
+                opcoes: ["Leite", "Cerveja Corona", "Whisky", "Refrigerante"],
+                resposta: "Cerveja Corona"
+            },
+            { // Nível 2
+                pergunta: "Em 'Desafio em Tóquio', qual é o nome do 'Rei do Drift' (DK)?",
+                opcoes: ["Takashi", "Han Lue", "Sean Boswell", "Kenji"],
+                resposta: "Takashi"
+            },
+            { // Nível 3
+                pergunta: "Qual carro Brian O'Conner dirige na sua primeira corrida contra Toretto no primeiro filme?",
+                opcoes: ["Toyota Supra Laranja", "Nissan Skyline GT-R", "Mitsubishi Eclipse Verde", "Dodge Charger"],
+                resposta: "Mitsubishi Eclipse Verde"
+            },
+            { // Nível 4
+                pergunta: "Em 'Velozes 5', a equipe rouba um cofre gigante. Em que cidade isso acontece?",
+                opcoes: ["São Paulo", "Miami", "Los Angeles", "Rio de Janeiro"],
+                resposta: "Rio de Janeiro"
+            },
+            { // Nível 5
+                pergunta: "Qual é o nome do dispositivo de vigilância global que eles buscam em 'Velozes 7'?",
+                opcoes: ["Pandora", "Olho de Deus", "Skynet", "Ares"],
+                resposta: "Olho de Deus"
+            },
+            { // Nível 6
+                pergunta: "Quem se sacrifica para salvar Han em 'Velozes e Furiosos 6'?",
+                opcoes: ["Mia", "Letty", "Gisele", "Elena"],
+                resposta: "Gisele"
+            },
+            { // Nível 7
+                pergunta: "Qual é a relação de parentesco entre Deckard Shaw e Owen Shaw?",
+                opcoes: ["Primos", "Pai e Filho", "Irmãos", "Tio e Sobrinho"],
+                resposta: "Irmãos"
+            },
+            { // Nível 8
+                pergunta: "Em 'Velozes 9', para onde Tej e Roman viajam em um Pontiac Fiero modificado?",
+                opcoes: ["Fundo do oceano", "Centro da Terra", "Órbita do espaço", "Polo Norte"],
+                resposta: "Órbita do espaço"
+            },
+            { // Nível 9
+                pergunta: "Qual é o nome do irmão de Dom, que é o principal vilão em 'Velozes 9'?",
+                opcoes: ["Leo", "Rico", "Jakob", "Mateo"],
+                resposta: "Jakob"
+            },
+            { // Nível 10
+                pergunta: "O lema principal que Dominic Toretto repete em todos os filmes é sobre a importância da...",
+                opcoes: ["Velocidade", "Fortuna", "Família", "Vingança"],
+                resposta: "Família"
+            }
+        ];
+
+        const numeroDeCasas = 10;
+
+        // --- ELEMENTOS DO DOM (A PÁGINA) ---
+        const gameBoard = document.getElementById('game-board');
+        const questionElement = document.getElementById('question');
+        const answersContainer = document.getElementById('answers-container');
+        const feedbackElement = document.getElementById('feedback');
+        const startButton = document.getElementById('start-button');
+
+        // --- VARIÁVEIS DE ESTADO DO JOGO ---
+        let posicaoAtual;
+        let perguntaAtualIndex;
+        let jogoAtivo;
+        let playerElement;
+
+        // --- FUNÇÕES DO JOGO ---
+
+        /**
+         * Inicializa ou reinicia o jogo, resetando as variáveis.
+         */
+        function iniciarJogo() {
+            posicaoAtual = 0;
+            perguntaAtualIndex = 0;
+            jogoAtivo = true;
+
+            startButton.style.display = 'none';
+            feedbackElement.textContent = '';
+
+            criarTabuleiro();
+            mostrarPergunta();
+            atualizarPosicaoJogador();
+        }
+
+        /**
+         * Cria as casas coloridas do tabuleiro e o personagem.
+         */
+        function criarTabuleiro() {
+            gameBoard.innerHTML = ''; // Limpa o tabuleiro anterior
+            
+            // Cria as casas
+            for (let i = 0; i < numeroDeCasas; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.textContent = i + 1;
+                gameBoard.appendChild(tile);
+            }
+            
+            // Cria o personagem (Toretto) como um SVG
+            playerElement = document.createElement('div');
+            playerElement.id = 'player';
+            playerElement.innerHTML = `
+                <svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <radialGradient id="gradHead" cx="50%" cy="30%" r="50%" fx="50%" fy="30%">
+                        <stop offset="0%" style="stop-color:rgb(245,222,179);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:rgb(210,180,140);stop-opacity:1" />
+                        </radialGradient>
+                    </defs>
+                    <rect x="20" y="70" width="60" height="80" fill="#333" rx="10"/>
+                    <circle cx="50" cy="90" r="30" fill="#fff"/>
+                    <path d="M 30 75 L 70 75 L 65 130 L 35 130 Z" fill="#fff"/>
+                    <circle cx="50" cy="40" r="35" fill="url(#gradHead)"/>
+                </svg>
+            `;
+            gameBoard.appendChild(playerElement);
+        }
+
+        /**
+         * Exibe a pergunta atual e as opções de resposta.
+         */
+        function mostrarPergunta() {
+            if (!jogoAtivo) return;
+
+            // Verifica se ganhou por chegar ao final das perguntas
+            if (perguntaAtualIndex >= perguntas.length) {
+                finalizarJogo(true);
+                return;
+            }
+
+            const perguntaInfo = perguntas[perguntaAtualIndex];
+            questionElement.textContent = perguntaInfo.pergunta;
+            answersContainer.innerHTML = ''; // Limpa botões antigos
+
+            // Cria um botão para cada opção de resposta
+            perguntaInfo.opcoes.forEach(opcao => {
+                const button = document.createElement('button');
+                button.textContent = opcao;
+                button.classList.add('answer-btn');
+                button.onclick = () => verificarResposta(opcao);
+                answersContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * Processa a resposta do jogador e move o personagem.
+         */
+        function verificarResposta(respostaSelecionada) {
+            if (!jogoAtivo) return;
+
+            jogoAtivo = false; // Bloqueia novos cliques enquanto processa
+            
+            // Desabilita todos os botões
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+
+            const perguntaInfo = perguntas[perguntaAtualIndex];
+            const respostaCorreta = perguntaInfo.resposta;
+
+            if (respostaSelecionada === respostaCorreta) {
+                feedbackElement.textContent = "CERTO! Avance 1 casa.";
+                feedbackElement.style.color = "#2ecc71"; // Verde
+                posicaoAtual++;
+            } else {
+                feedbackElement.textContent = "ERRADO! Volte 2 casas.";
+                feedbackElement.style.color = "#e74c3c"; // Vermelho
+                posicaoAtual -= 2;
+            }
+
+            // Garante que a posição não seja negativa
+            if (posicaoAtual < 0) {
+                posicaoAtual = 0;
+            }
+            
+            perguntaAtualIndex++;
+            
+            // Atualiza a posição visual após um pequeno atraso
+            setTimeout(() => {
+                atualizarPosicaoJogador();
+
+                // Após a animação, prepara a próxima rodada
+                setTimeout(() => {
+                    if (posicaoAtual >= numeroDeCasas) {
+                        finalizarJogo(true);
+                    } else {
+                        jogoAtivo = true;
+                        feedbackElement.textContent = '';
+                        mostrarPergunta();
+                    }
+                }, 1000); // Espera 1 segundo para ler o feedback e ver a animação
+
+            }, 300);
+        }
+
+        /**
+         * Move o elemento do jogador no tabuleiro.
+         */
+        function atualizarPosicaoJogador() {
+            if (!playerElement) return;
+            const tileWidth = gameBoard.offsetWidth / numeroDeCasas;
+            playerElement.style.left = `${posicaoAtual * tileWidth}px`;
+        }
+        
+        /**
+         * Encerra o jogo e exibe a mensagem final.
+         */
+        function finalizarJogo(venceu) {
+            jogoAtivo = false;
+            answersContainer.innerHTML = '';
+            
+            if (venceu) {
+                questionElement.textContent = "VITÓRIA!";
+                feedbackElement.innerHTML = `Você conquistou a corrida. <br> A família está orgulhosa!`;
+                feedbackElement.style.color = '#f1c40f'; // CORREÇÃO: Usar valor hexadecimal
+                // Move para a última casa se passou
+                posicaoAtual = numeroDeCasas - 1; 
+                atualizarPosicaoJogador();
+            } else {
+                // Esta condição pode ser ativada no futuro
+                questionElement.textContent = "FIM DE JOGO!";
+            }
+            
+            startButton.textContent = 'Jogar Novamente';
+            startButton.style.display = 'block';
+        }
+
+        // --- EVENT LISTENERS ---
+        startButton.addEventListener('click', iniciarJogo);
+        window.addEventListener('resize', atualizarPosicaoJogador);
+
+        // Inicializa o tabuleiro visualmente ao carregar a página
+        criarTabuleiro();
+        
+    </script>
+</body>
+</html>
